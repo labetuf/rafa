@@ -1,1 +1,94 @@
 
+(ns integrador.core
+  (:require [clojure.string :as str]))
+
+(def NOTA-MINIMA-APROVACAO 7.0)
+
+(defn exibir-menu []
+  (println "\n=== SISTEMA DE GESTÃO DE NOTAS ===")
+  (println "1 - Inserir novo aluno")
+  (println "2 - Mostrar relatório")
+  (println "3 - Exibir estatísticas")
+  (println "0 - Encerrar programa")
+  (print "Digite sua opção: ")
+  (flush))
+
+(defn cadastrar-alunos [alunos-atuais]
+  (println "\n--- 1. Cadastro de Alunos ---")
+  (loop [alunos alunos-atuais]
+    (print "Insira o nome (deixe vazio para voltar ao menu): ")
+    (flush)
+    (let [nome (read-line)]
+      (if (str/blank? nome)
+        (do
+          (println "\nCadastro completo! Voltando ao menu.")
+          alunos)
+        (do
+          (print "Nota do aluno: ")
+          (flush)
+          (let [nota (try
+                       (Double/parseDouble (read-line))
+                       (catch NumberFormatException e
+                         nil))]
+            (if (nil? nota)
+              (do
+                (println "Erro: Nota inválida. Tente novamente.")
+                (recur alunos))
+              (do
+                (let [novo-aluno {:nome nome :nota nota}]
+                  (println "Aluno cadastrado com sucesso!")
+                  (recur (conj alunos novo-aluno)))))))))))
+
+(defn adicionar-status [aluno]
+  (assoc aluno :status (if (>= (:nota aluno) NOTA-MINIMA-APROVACAO)
+                         "Aprovado"
+                         "Reprovado")))
+
+(defn relatorio-notas [alunos]
+  (println "\n--- 2. Relatório de Notas ---")
+  (if (empty? alunos)
+    (println "Nenhum aluno cadastrado para gerar relatório.")
+    (do
+      (println (str "Nota mínima para aprovação: " NOTA-MINIMA-APROVACAO))
+      (println "\nAlunos Aprovados:")
+      
+      (let [alunos-com-status (map adicionar-status alunos)
+            aprovados (filter #(= (:status %) "Aprovado") alunos-com-status)]
+        
+        (if (empty? aprovados)
+          (println "Nenhum aluno foi aprovado.")
+          (doseq [aluno aprovados]
+            (println (str "\t" (:nome aluno) " - Nota: " (:nota aluno))))))
+      
+      (println "---")
+      
+      (let [notas (map :nota alunos)
+            soma-das-notas (reduce + notas)
+            media (double (/ soma-das-notas (count alunos)))]
+        (println (format "Média Geral da Turma: %.2f" media))))))
+
+(defn estatisticas-gerais [alunos]
+  (println "\n--- 3. Estatísticas Gerais ---")
+  (let [total-alunos (count alunos)]
+    (println (str "Total de alunos cadastrados: " total-alunos))))
+
+(defn -main []
+  (loop [alunos []]
+    (exibir-menu)
+    (let [opcao (read-line)]
+      (cond
+        (= opcao "1") (recur (cadastrar-alunos alunos))
+        
+        (= opcao "2") (do
+                        (relatorio-notas alunos)
+                        (recur alunos))
+        
+        (= opcao "3") (do
+                        (estatisticas-gerais alunos)
+                        (recur alunos))
+        
+        (= opcao "0") (println "Saindo do sistema...")
+        
+        :else (do
+                (println "\nOpção inválida! Tente novamente.")
+                (recur alunos))))))
